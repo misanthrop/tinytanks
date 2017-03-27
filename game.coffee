@@ -3,11 +3,11 @@ ctx = canvas.getContext '2d'
 sprite = new Image()
 sprite.src = 'sprite.png'
 
-width = 128
-height = 96
+width = 52
+height = 48
 objs = []
 cells = []
-cellX = cellY = 10
+cellX = cellY = 16
 dirX = [ 0, 1, 0, -1]
 dirY = [-1, 0, 1,  0]
 keyDown = {}
@@ -24,13 +24,11 @@ square = (x, y, sx, sy, fn) ->
         for cy in [y - sy ... y + sy]
             return true if fn cx, cy
 
-for i in [0..256]
+for i in [0..64]
     x = 4*rand width//4
     y = 4 + 4*rand height//4 - 2
-    t = 1 + rand 2
-    for cx in [x...x + 4]
-        for cy in [y...y + 4]
-            setCell cx, cy, t
+    t = if 0 == rand 4 then 2 else 1
+    setCell cx, cy, t for cx in [x...x + 4] for cy in [y...y + 4]
 
 keys =
     0:
@@ -57,13 +55,14 @@ drawObjSprite = (o, sx, sy) -> drawSprite (o.x - dirX[o.dir]*o.t/o.T)*cellX, (o.
 
 class Obj
     constructor: (@x, @y, @dir = 0, @size, @T = 0) ->
+        @mask = 1
         @life = 1
         @t = 0
     nextX: -> @x + dirX[@dir]
     nextY: -> @y + dirY[@dir]
     collides: (x, y) ->
         return true if square x, y, @size, @size, cell
-        for obj in objs when @ != obj and obj != @owner and not (obj instanceof Explosion)
+        for obj in objs when @ != obj and obj != @owner and @mask & obj.mask
             return obj if Math.max(Math.abs(x - obj.x), Math.abs(y - obj.y)) < @size + obj.size
     move: (dir) -> if not @t
         @dir = dir
@@ -77,24 +76,38 @@ class Obj
     tick: -> @t -= 1 if @t
 
 class Tank extends Obj
-    constructor: (x, y, @type) ->
+    constructor: (x, y, @team, @control) ->
         super x, y, 0, 2, 8
         @cooldown = 0
-    fire: -> if not @cooldown
-        @cooldown = 20
+        @bullets = 0
+    fire: -> if not @cooldown and @bullets < 1
+        @cooldown = 30
+        @bullets += 1
         objs.push new Bullet @nextX(), @nextY(), @, @dir
     tick: ->
+        @control.call @
         super()
         @cooldown -= 1 if @cooldown
-    draw: -> drawObjSprite @, @t, @type
+    draw: -> drawObjSprite @, @t, @team
+
+keyControl = (keys) -> ->
+    @move dir for dir in [0..3] when keyDown[keys[dir]]
+    @fire() if keyDown[keys.fire]
+
+aiControl = ->
+    @dir = rand 4 if not rand 32
+    @move @dir
+    @fire() if not rand 8
 
 class Bullet extends Obj
-    constructor: (x, y, @owner, dir) -> super x, y, dir, 1, 2
+    constructor: (x, y, @owner, dir) -> super x, y, dir, 1, 4
     tick: ->
         super()
         if obj = @move @dir
-            obj.life -= 1
+            obj.life -= 1 if @owner.team != obj.team
             @life = 0
+            @owner.bullets -= 1
+            obj.owner.bullets -= 1 if obj.owner
             @x = @nextX()
             @y = @nextY()
             square @x, @y, Math.abs(dirY[@dir]) + 1, Math.abs(dirX[@dir]) + 1, (x, y) -> setCell x, y, 0 if 1 == cell x, y
@@ -105,38 +118,34 @@ class Base extends Obj
     draw: -> drawSprite @x*cellX, @y*cellY, 0, 7, 2
 
 class Explosion
-    constructor: (@x, @y) -> @life = 19
+    constructor: (@x, @y) ->
+        @life = 19
     tick: -> @life -= 1
     draw: -> drawSprite @x*cellX, @y*cellY, 0, 3 - @life//5, 2
 
-spawnPoint =
-    0: [width//2 - 8, height - 2]
-    1: [width//2 + 8, height - 2]
-
-class Player
-    constructor: (@slot) -> @keys = keys[@slot]
-    tick: ->
-        if @tank
-            for dir in [0..3] when keyDown[@keys[dir]]
-                @tank.move dir
-            @tank.fire() if keyDown[@keys.fire]
-        else
-            objs.push @tank = new Tank spawnPoint[@slot]..., @slot
-
-players = [
-    new Player 0
-    new Player 1]
+class Spawn
+    constructor: (@x, @y, @t, @team, @control) -> @life = 1
+    tick: -> if not @tank or @tank.life <= 0
+        if not @t -= 1
+            objs.push @tank = new Tank @x, @y, @team, @control
+            @t = 80
+    draw: -> if @t < 20
+        drawSprite @x*cellX, @y*cellY, 0, 3 - @t//5, 2
 
 square width//2, height - 3, 4, 3, (x, y) -> setCell x, y, 1; false
 square width//2, height - 2, 2, 2, (x, y) -> setCell x, y, 0; false
 objs.push new Base width//2, height - 2
+objs.push new Spawn width//2 - 8, height - 2, 10, 1, keyControl keys[0]
+objs.push new Spawn width//2 + 8, height - 2, 10, 1, keyControl keys[1]
+objs.push new Spawn 2, 2, 100, 0, aiControl
+objs.push new Spawn width//2, 2, 200, 0, aiControl
+objs.push new Spawn width - 3, 2, 300, 0, aiControl
 
 window.onkeydown = (ev) -> keyDown[ev.code] = true; false
 window.onkeyup = (ev) -> delete keyDown[ev.code]; false
 
 setInterval ->
     objs = objs.filter (obj) -> obj.life > 0
-    player.tick() for player in players
     obj.tick() for obj in objs
     objs.push new Explosion o.x, o.y for o in objs when o.life <= 0 and not (o instanceof Explosion)
 , 10
