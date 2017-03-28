@@ -1,5 +1,5 @@
 out ?= /tmp/tinytanks/
-targets := index.html game.js sprite.png
+targets := index.html config.js levels.js game.js sprite.png
 targets := $(addprefix $(out), $(targets))
 
 all:: $(targets)

@@ -4,7 +4,7 @@ sprite = new Image()
 sprite.src = 'sprite.png'
 
 width = 52
-height = 48
+height = 52
 objs = []
 cells = []
 cellX = cellY = 16
@@ -24,51 +24,37 @@ square = (x, y, sx, sy, fn) ->
         for cy in [y - sy ... y + sy]
             return true if fn cx, cy
 
-for i in [0..64]
-    x = 4*rand width//4
-    y = 4 + 4*rand height//4 - 2
-    t = if 0 == rand 4 then 2 else 1
-    setCell cx, cy, t for cx in [x...x + 4] for cy in [y...y + 4]
+loadLevel = (level) ->
+    for x in [0...width]
+        for y in [0...height]
+            setCell x, y, switch level[y//2*(width//2 + 1) + x//2]
+                when 'o' then 1
+                when 'X' then 2
+                when '=' then 3
+                else 0
 
-keys =
-    0:
-        0: 'ArrowUp'
-        1: 'ArrowRight'
-        2: 'ArrowDown'
-        3: 'ArrowLeft'
-        fire: 'Space'
-    1:
-        0: 'KeyW'
-        1: 'KeyD'
-        2: 'KeyS'
-        3: 'KeyA'
-        fire: 'Tab'
+loadLevel levels[0]
 
-drawCell = (type, x, y) -> ctx.drawImage sprite, 84*type + 21*(x%4), 84*3 + 21*(y%4), 21, 21, x*cellX, y*cellY, cellX, cellY
-drawSprite = (x, y, dir, sx, sy) ->
-    ctx.save()
-    ctx.translate x, y
-    ctx.rotate dir*Math.PI*0.5
-    ctx.drawImage sprite, 84*sx, 84*sy, 84, 84, -cellX*2, -cellY*2, cellX*4, cellY*4
-    ctx.restore()
-drawObjSprite = (o, sx, sy) -> drawSprite (o.x - dirX[o.dir]*o.t/o.T)*cellX, (o.y - dirY[o.dir]*o.t/o.T)*cellY, o.dir, sx, sy
+cellMask = [0, 0b11, 0b11, 0b1]
+
+collide = (self, x, y, size) ->
+    return true if square x, y, size, size, (x, y) -> self.layer & cellMask[cell x, y]
+    for obj in objs when self != obj and obj != self.owner and self.mask & obj.layer
+        return obj if Math.max(Math.abs(x - obj.x), Math.abs(y - obj.y)) < size + obj.size
 
 class Obj
     constructor: (@x, @y, @dir = 0, @size, @T = 0) ->
-        @mask = 1
+        @layer = 1
+        @mask = 0b1
         @life = 1
         @t = 0
     nextX: -> @x + dirX[@dir]
     nextY: -> @y + dirY[@dir]
-    collides: (x, y) ->
-        return true if square x, y, @size, @size, cell
-        for obj in objs when @ != obj and obj != @owner and @mask & obj.mask
-            return obj if Math.max(Math.abs(x - obj.x), Math.abs(y - obj.y)) < @size + obj.size
     move: (dir) -> if not @t
         @dir = dir
         x = @nextX()
         y = @nextY()
-        return obj if obj = @collides x, y, @size
+        return obj if obj = collide @, x, y, @size
         @x = x
         @y = y
         @t = @T
@@ -100,7 +86,10 @@ aiControl = ->
     @fire() if not rand 8
 
 class Bullet extends Obj
-    constructor: (x, y, @owner, dir) -> super x, y, dir, 1, 4
+    constructor: (x, y, @owner, dir) ->
+        super x, y, dir, 1, 4
+        @layer = 2
+        @mask = 0b11
     tick: ->
         super()
         if obj = @move @dir
@@ -128,15 +117,14 @@ class Spawn
     tick: -> if not @tank or @tank.life <= 0
         if not @t -= 1
             objs.push @tank = new Tank @x, @y, @team, @control
-            @t = 80
+            @t = 160
     draw: -> if @t < 20
         drawSprite @x*cellX, @y*cellY, 0, 3 - @t//5, 2
 
 square width//2, height - 3, 4, 3, (x, y) -> setCell x, y, 1; false
 square width//2, height - 2, 2, 2, (x, y) -> setCell x, y, 0; false
 objs.push new Base width//2, height - 2
-objs.push new Spawn width//2 - 8, height - 2, 10, 1, keyControl keys[0]
-objs.push new Spawn width//2 + 8, height - 2, 10, 1, keyControl keys[1]
+objs.push new Spawn width//2 - x, height - 2, 10, 1, keyControl keys[i] for x, i in [-8, 8]
 objs.push new Spawn 2, 2, 100, 0, aiControl
 objs.push new Spawn width//2, 2, 200, 0, aiControl
 objs.push new Spawn width - 3, 2, 300, 0, aiControl
@@ -150,8 +138,17 @@ setInterval ->
     objs.push new Explosion o.x, o.y for o in objs when o.life <= 0 and not (o instanceof Explosion)
 , 10
 
+drawCell = (type, x, y) -> ctx.drawImage sprite, 84*type + 21*(x%4), 84*3 + 21*(y%4), 21, 21, x*cellX, y*cellY, cellX, cellY
+drawSprite = (x, y, dir, sx, sy) ->
+    ctx.save()
+    ctx.translate x, y
+    ctx.rotate dir*Math.PI*0.5
+    ctx.drawImage sprite, 84*sx, 84*sy, 84, 84, -cellX*2, -cellY*2, cellX*4, cellY*4
+    ctx.restore()
+drawObjSprite = (o, sx, sy) -> drawSprite (o.x - dirX[o.dir]*o.t/o.T)*cellX, (o.y - dirY[o.dir]*o.t/o.T)*cellY, o.dir, sx, sy
+
 do draw = ->
     ctx.clearRect 0, 0, canvas.width, canvas.height
-    obj.draw() for obj in objs
     drawCell cell(x, y), x, y for x in [0...width] for y in [0...height]
+    obj.draw() for obj in objs
     window.requestAnimationFrame -> draw()
