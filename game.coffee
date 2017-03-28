@@ -1,7 +1,5 @@
 canvas = document.getElementById 'view'
 ctx = canvas.getContext '2d'
-sprite = new Image()
-sprite.src = 'sprite.png'
 
 width = 52
 height = 52
@@ -23,17 +21,6 @@ square = (x, y, sx, sy, fn) ->
     for cx in [x - sx ... x + sx]
         for cy in [y - sy ... y + sy]
             return true if fn cx, cy
-
-loadLevel = (level) ->
-    for x in [0...width]
-        for y in [0...height]
-            setCell x, y, switch level[y//2*(width//2 + 1) + x//2]
-                when 'o' then 1
-                when 'X' then 2
-                when '=' then 3
-                else 0
-
-loadLevel levels[0]
 
 cellMask = [0, 0b11, 0b11, 0b1]
 
@@ -66,15 +53,17 @@ class Tank extends Obj
         super x, y, 0, 2, 8
         @cooldown = 0
         @bullets = 0
+        @g = 0
     fire: -> if not @cooldown and @bullets < 1
         @cooldown = 30
         @bullets += 1
         objs.push new Bullet @nextX(), @nextY(), @, @dir
     tick: ->
+        @g = (@g + 1)%8 if 1 == @t%4
         @control.call @
         super()
         @cooldown -= 1 if @cooldown
-    draw: -> drawObjSprite @, @t, @team
+    draw: -> drawObjSprite @, @g, @team
 
 keyControl = (keys) -> ->
     @move dir for dir in [0..3] when keyDown[keys[dir]]
@@ -121,13 +110,25 @@ class Spawn
     draw: -> if @t < 20
         drawSprite @x*cellX, @y*cellY, 0, 3 - @t//5, 2
 
+loadLevel = (level) ->
+    t = 0
+    for row, ly in level.split ' '
+        for c, lx in row
+            x = lx*2
+            y = ly*2
+            if t = {'o': 1, 'X': 2, '=': 3}[c]
+                setCell cx, cy, t for cx in [x..x+1] for cy in [y..y+1]
+            obj = switch c
+                when '@' then new Base x, y
+                when '0' then new Spawn x, y, t += 100, 0, aiControl
+                when '1' then new Spawn x, y, 10, 1, keyControl keys[0]
+                when '2' then new Spawn x, y, 10, 1, keyControl keys[1]
+            objs.push obj if obj
+
+loadLevel levels[0]
+
 square width//2, height - 3, 4, 3, (x, y) -> setCell x, y, 1; false
 square width//2, height - 2, 2, 2, (x, y) -> setCell x, y, 0; false
-objs.push new Base width//2, height - 2
-objs.push new Spawn width//2 - x, height - 2, 10, 1, keyControl keys[i] for x, i in [-8, 8]
-objs.push new Spawn 2, 2, 100, 0, aiControl
-objs.push new Spawn width//2, 2, 200, 0, aiControl
-objs.push new Spawn width - 3, 2, 300, 0, aiControl
 
 window.onkeydown = (ev) -> keyDown[ev.code] = true; false
 window.onkeyup = (ev) -> delete keyDown[ev.code]; false
@@ -137,6 +138,9 @@ setInterval ->
     obj.tick() for obj in objs
     objs.push new Explosion o.x, o.y for o in objs when o.life <= 0 and not (o instanceof Explosion)
 , 10
+
+sprite = new Image()
+sprite.src = 'sprite.png'
 
 drawCell = (type, x, y) -> ctx.drawImage sprite, 84*type + 21*(x%4), 84*3 + 21*(y%4), 21, 21, x*cellX, y*cellY, cellX, cellY
 drawSprite = (x, y, dir, sx, sy) ->
