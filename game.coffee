@@ -16,52 +16,48 @@ rand = (max) -> Math.floor Math.random()*max
 inRange = (x, y) -> 0 <= x and x < width and 0 <= y and y < height
 cell = (x, y) -> if inRange x, y then cells[y*width + x] else 1
 setCell = (x, y, v) -> cells[y*width + x] = v if inRange x, y
+forEachCell = (fn) -> fn cell(x, y), x, y for x in [0...width] for y in [0...height]
+cellMask = [0, 0b11, 0b11, 0b1, 0]
 
-square = (x, y, sx, sy, fn) ->
-    for cx in [x - sx ... x + sx]
-        for cy in [y - sy ... y + sy]
-            return true if fn cx, cy
-
-cellMask = [0, 0b11, 0b11, 0b1]
-
-collide = (self, x, y, size) ->
-    return true if square x, y, size, size, (x, y) -> self.layer & cellMask[cell x, y]
-    for obj in objs when self != obj and obj != self.owner and self.mask & obj.layer
-        return obj if Math.max(Math.abs(x - obj.x), Math.abs(y - obj.y)) < size + obj.size
+collide = (a, ax, ay) ->
+    for x in [ax - a.size ... ax + a.size]
+        for y in [ay - a.size ... ay + a.size]
+            return true if a.layer & cellMask[cell x, y]
+    return if (ax != a.x or ay != a.y) and collide a, a.x, a.y
+    for b in objs when a != b and b != a.owner and a.mask & b.layer
+        return b if Math.max(Math.abs(ax - b.x), Math.abs(ay - b.y)) < a.size + b.size
 
 class Obj
-    constructor: (@x, @y, @dir = 0, @size, @T = 0) ->
-        @layer = 1
-        @mask = 0b1
-        @life = 1
-        @t = 0
     nextX: -> @x + dirX[@dir]
     nextY: -> @y + dirY[@dir]
+    die: -> objs.push new Explosion @x, @y
+
+class Tank extends Obj
+    layer: 1
+    mask: 1
+    size: 2
+    constructor: (@x, @y, @team, @control, @dir = 0) ->
+        @life = 1
+        @cooldown = 0
+        @bullets = 0
+        @t = @g = 0
+        @mt = 8
     move: (dir) -> if not @t
         @dir = dir
         x = @nextX()
         y = @nextY()
-        return obj if obj = collide @, x, y, @size
+        return obj if obj = collide @, x, y
         @x = x
         @y = y
-        @t = @T
+        @t = @mt
         return
-    tick: -> @t -= 1 if @t
-
-class Tank extends Obj
-    constructor: (x, y, @team, @control) ->
-        super x, y, 0, 2, 8
-        @cooldown = 0
-        @bullets = 0
-        @g = 0
     fire: -> if not @cooldown and @bullets < 1
         @cooldown = 30
-        @bullets += 1
         objs.push new Bullet @nextX(), @nextY(), @, @dir
     tick: ->
         @g = (@g + 1)%8 if 1 == @t%4
+        @t -= 1 if @t
         @control.call @
-        super()
         @cooldown -= 1 if @cooldown
     draw: -> drawObjSprite @, @g, @team
 
@@ -70,36 +66,48 @@ keyControl = (keys) -> ->
     @fire() if keyDown[keys.fire]
 
 aiControl = ->
-    @dir = rand 4 if not rand 32
+    @dir = rand 4 if not rand 48
     @move @dir
     @fire() if not rand 8
 
 class Bullet extends Obj
-    constructor: (x, y, @owner, dir) ->
-        super x, y, dir, 1, 4
-        @layer = 2
-        @mask = 0b11
+    layer: 2
+    mask: 0b11
+    size: 1
+    constructor: (@x, @y, @owner, @dir) ->
+        @life = 1
+        @t = 1
+        @mt = 4
+        @owner.bullets += 1
     tick: ->
-        super()
-        if obj = @move @dir
+        if obj = collide @, @x, @y
             obj.life -= 1 if @owner.team != obj.team
             @life = 0
-            @owner.bullets -= 1
-            obj.owner.bullets -= 1 if obj.owner
+            ex = 1 + Math.abs dirY[@dir]
+            ey = 1 + Math.abs dirX[@dir]
+            for x in [@x-ex...@x+ex]
+                for y in [@y-ey...@y+ey]
+                    setCell x, y, 0 if 1 == cell x, y
+        if not @t -= 1
+            @t = @mt
             @x = @nextX()
             @y = @nextY()
-            square @x, @y, Math.abs(dirY[@dir]) + 1, Math.abs(dirX[@dir]) + 1, (x, y) -> setCell x, y, 0 if 1 == cell x, y
     draw: -> drawObjSprite @, 4, 2
+    die: ->
+        super()
+        @owner.bullets -= 1
 
 class Base extends Obj
-    constructor: (x, y) -> super x, y, 0, 2
+    layer: 1
+    size: 2
+    constructor: (@x, @y) -> @life = 1
     draw: -> drawSprite @x*cellX, @y*cellY, 0, 7, 2
 
 class Explosion
-    constructor: (@x, @y) ->
-        @life = 19
+    constructor: (@x, @y, @life = 19) ->
     tick: -> @life -= 1
     draw: -> drawSprite @x*cellX, @y*cellY, 0, 3 - @life//5, 2
+    die: ->
 
 class Spawn
     constructor: (@x, @y, @t, @team, @control) -> @life = 1
@@ -112,11 +120,12 @@ class Spawn
 
 loadLevel = (level) ->
     t = 0
+    objs = []
     for row, ly in level.split ' '
         for c, lx in row
             x = lx*2
             y = ly*2
-            if t = {'o': 1, 'X': 2, '=': 3}[c]
+            if t = {'o': 1, 'X': 2, '=': 3, '~': 4}[c]
                 setCell cx, cy, t for cx in [x..x+1] for cy in [y..y+1]
             obj = switch c
                 when '@' then new Base x, y
@@ -125,18 +134,15 @@ loadLevel = (level) ->
                 when '2' then new Spawn x, y, 10, 1, keyControl keys[1]
             objs.push obj if obj
 
-loadLevel levels[0]
-
-square width//2, height - 3, 4, 3, (x, y) -> setCell x, y, 1; false
-square width//2, height - 2, 2, 2, (x, y) -> setCell x, y, 0; false
+loadLevel levels[3]
 
 window.onkeydown = (ev) -> keyDown[ev.code] = true; false
 window.onkeyup = (ev) -> delete keyDown[ev.code]; false
 
 setInterval ->
     objs = objs.filter (obj) -> obj.life > 0
-    obj.tick() for obj in objs
-    objs.push new Explosion o.x, o.y for o in objs when o.life <= 0 and not (o instanceof Explosion)
+    obj.tick?() for obj in objs
+    obj.die() for obj in objs when obj.life <= 0
 , 10
 
 sprite = new Image()
@@ -149,10 +155,11 @@ drawSprite = (x, y, dir, sx, sy) ->
     ctx.rotate dir*Math.PI*0.5
     ctx.drawImage sprite, 84*sx, 84*sy, 84, 84, -cellX*2, -cellY*2, cellX*4, cellY*4
     ctx.restore()
-drawObjSprite = (o, sx, sy) -> drawSprite (o.x - dirX[o.dir]*o.t/o.T)*cellX, (o.y - dirY[o.dir]*o.t/o.T)*cellY, o.dir, sx, sy
+drawObjSprite = (o, sx, sy) -> drawSprite (o.x - dirX[o.dir]*o.t/o.mt)*cellX, (o.y - dirY[o.dir]*o.t/o.mt)*cellY, o.dir, sx, sy
 
 do draw = ->
     ctx.clearRect 0, 0, canvas.width, canvas.height
-    drawCell cell(x, y), x, y for x in [0...width] for y in [0...height]
+    forEachCell (c, x, y) -> drawCell c, x, y if c == 3
     obj.draw() for obj in objs
+    forEachCell (c, x, y) -> drawCell c, x, y if c != 3
     window.requestAnimationFrame -> draw()
