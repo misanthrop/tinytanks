@@ -1,22 +1,12 @@
-canvas = document.getElementById 'view'
-ctx = canvas.getContext '2d'
+rand = (max) -> Math.floor Math.random()*max
 
-width = 52
-height = 52
 objs = []
 cells = []
-cellX = cellY = 16
 dirX = [ 0, 1, 0, -1]
 dirY = [-1, 0, 1,  0]
-keyDown = {}
-canvas.width = cellX*width
-canvas.height = cellY*height
-
-rand = (max) -> Math.floor Math.random()*max
 inRange = (x, y) -> 0 <= x and x < width and 0 <= y and y < height
 cell = (x, y) -> if inRange x, y then cells[y*width + x] else 1
 setCell = (x, y, v) -> cells[y*width + x] = v if inRange x, y
-forEachCell = (fn) -> fn cell(x, y), x, y for x in [0...width] for y in [0...height]
 cellMask = [0, 0b11, 0b11, 0b1, 0]
 
 collide = (a, ax, ay) ->
@@ -27,39 +17,34 @@ collide = (a, ax, ay) ->
     for b in objs when a != b and b != a.owner and a.mask & b.layer
         return b if Math.max(Math.abs(ax - b.x), Math.abs(ay - b.y)) < a.size + b.size
 
-class Obj
-    nextX: -> @x + dirX[@dir]
-    nextY: -> @y + dirY[@dir]
-    die: -> objs.push new Explosion @x, @y
-
-class Tank extends Obj
+class Tank
     layer: 1
     mask: 1
     size: 2
-    constructor: (@x, @y, @team, @control, @dir = 0) ->
-        @life = 1
+    constructor: (@x, @y, @team, @control, @type, @dir = 0) ->
+        @life = @type.life
         @cooldown = 0
         @bullets = 0
         @t = @g = 0
-        @mt = 8
     move: (dir) -> if not @t
         @dir = dir
-        x = @nextX()
-        y = @nextY()
-        return obj if obj = collide @, x, y
-        @x = x
-        @y = y
-        @t = @mt
-        return
-    fire: -> if not @cooldown and @bullets < 1
-        @cooldown = 30
-        objs.push new Bullet @nextX(), @nextY(), @, @dir
+        x = @x + dirX[@dir]
+        y = @y + dirY[@dir]
+        if not collide @, x, y
+            @x = x
+            @y = y
+            @t = @type.invVelocity
+    moveProgress: -> @t/@type.invVelocity
+    fire: -> if not @cooldown and @bullets < @type.maxBullets
+        @cooldown = @type.fireCooldown
+        objs.push new Bullet @x + 2*dirX[@dir], @y + 2*dirY[@dir], @, @dir
     tick: ->
         @g = (@g + 1)%8 if 1 == @t%4
         @t -= 1 if @t
         @control.call @
         @cooldown -= 1 if @cooldown
     draw: -> drawObjSprite @, @g, @team
+    die: -> objs.push new Explosion @x, @y
 
 keyControl = (keys) -> ->
     @move dir for dir in [0..3] when keyDown[keys[dir]]
@@ -70,14 +55,14 @@ aiControl = ->
     @move @dir
     @fire() if not rand 8
 
-class Bullet extends Obj
+class Bullet
     layer: 2
     mask: 0b11
     size: 1
     constructor: (@x, @y, @owner, @dir) ->
         @life = 1
         @t = 1
-        @mt = 4
+        @invVelocity = @owner.type.invBulletVelocity
         @owner.bullets += 1
     tick: ->
         if obj = collide @, @x, @y
@@ -89,34 +74,35 @@ class Bullet extends Obj
                 for y in [@y-ey...@y+ey]
                     setCell x, y, 0 if 1 == cell x, y
         if not @t -= 1
-            @t = @mt
-            @x = @nextX()
-            @y = @nextY()
+            @t = @invVelocity
+            @x += dirX[@dir]
+            @y += dirY[@dir]
+    moveProgress: -> @t/@invVelocity
     draw: -> drawObjSprite @, 4, 2
     die: ->
-        super()
+        objs.push new Explosion @x, @y
         @owner.bullets -= 1
 
-class Base extends Obj
+class Base
     layer: 1
     size: 2
     constructor: (@x, @y) -> @life = 1
-    draw: -> drawSprite @x*cellX, @y*cellY, 0, 7, 2
+    draw: -> drawSprite @x, @y, 0, 7, 2
+    die: -> objs.push new Explosion @x, @y
 
 class Explosion
     constructor: (@x, @y, @life = 19) ->
     tick: -> @life -= 1
-    draw: -> drawSprite @x*cellX, @y*cellY, 0, 3 - @life//5, 2
-    die: ->
+    draw: -> drawSprite @x, @y, 0, 3 - @life//5, 2
 
 class Spawn
     constructor: (@x, @y, @t, @team, @control) -> @life = 1
     tick: -> if not @tank or @tank.life <= 0
         if not @t -= 1
-            objs.push @tank = new Tank @x, @y, @team, @control
+            objs.push @tank = new Tank @x, @y, @team, @control, tanks[3]
             @t = 160
     draw: -> if @t < 20
-        drawSprite @x*cellX, @y*cellY, 0, 3 - @t//5, 2
+        drawSprite @x, @y, 0, 3 - @t//5, 2
 
 loadLevel = (level) ->
     t = 0
@@ -136,30 +122,36 @@ loadLevel = (level) ->
 
 loadLevel levels[3]
 
+keyDown = {}
 window.onkeydown = (ev) -> keyDown[ev.code] = true; false
 window.onkeyup = (ev) -> delete keyDown[ev.code]; false
 
 setInterval ->
     objs = objs.filter (obj) -> obj.life > 0
     obj.tick?() for obj in objs
-    obj.die() for obj in objs when obj.life <= 0
+    obj.die?() for obj in objs when obj.life <= 0
 , 10
 
+canvas = document.getElementById 'view'
+ctx = canvas.getContext '2d'
+canvas.width = width*16
+canvas.height = height*16
+ctx.scale 16, 16
 sprite = new Image()
 sprite.src = 'sprite.png'
 
-drawCell = (type, x, y) -> ctx.drawImage sprite, 84*type + 21*(x%4), 84*3 + 21*(y%4), 21, 21, x*cellX, y*cellY, cellX, cellY
+drawCell = (type, x, y) -> ctx.drawImage sprite, 84*type + 21*(x%4), 84*3 + 21*(y%4), 21, 21, x, y, 1, 1
 drawSprite = (x, y, dir, sx, sy) ->
     ctx.save()
     ctx.translate x, y
     ctx.rotate dir*Math.PI*0.5
-    ctx.drawImage sprite, 84*sx, 84*sy, 84, 84, -cellX*2, -cellY*2, cellX*4, cellY*4
+    ctx.drawImage sprite, 84*sx, 84*sy, 84, 84, -2, -2, 4, 4
     ctx.restore()
-drawObjSprite = (o, sx, sy) -> drawSprite (o.x - dirX[o.dir]*o.t/o.mt)*cellX, (o.y - dirY[o.dir]*o.t/o.mt)*cellY, o.dir, sx, sy
+drawObjSprite = (o, sx, sy) -> drawSprite o.x - dirX[o.dir]*o.moveProgress(), o.y - dirY[o.dir]*o.moveProgress(), o.dir, sx, sy
 
 do draw = ->
     ctx.clearRect 0, 0, canvas.width, canvas.height
-    forEachCell (c, x, y) -> drawCell c, x, y if c == 3
+    drawCell c, i%width, i//height for c, i in cells when c == 3
     obj.draw() for obj in objs
-    forEachCell (c, x, y) -> drawCell c, x, y if c != 3
+    drawCell c, i%width, i//height for c, i in cells when c != 3
     window.requestAnimationFrame -> draw()
