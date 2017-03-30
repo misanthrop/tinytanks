@@ -17,6 +17,8 @@ collide = (a, ax, ay) ->
     for b in objs when a != b and b != a.owner and a.mask & b.layer
         return b if Math.max(Math.abs(ax - b.x), Math.abs(ay - b.y)) < a.size + b.size
 
+explode = -> objs.push new Explosion @x, @y
+
 class Tank
     layer: 1
     mask: 1
@@ -39,21 +41,12 @@ class Tank
         @cooldown = @type.fireCooldown
         objs.push new Bullet @x + 2*dirX[@dir], @y + 2*dirY[@dir], @, @dir
     tick: ->
-        @g = (@g + 1)%8 if 1 == @t%4
+        @g = (@g + 1)%2 if 1 == @t%4
         @t -= 1 if @t
         @control.call @
         @cooldown -= 1 if @cooldown
-    draw: -> drawObjSprite @, @g, @team
-    die: -> objs.push new Explosion @x, @y
-
-keyControl = (keys) -> ->
-    @move dir for dir in [0..3] when keyDown[keys[dir]]
-    @fire() if keyDown[keys.fire]
-
-aiControl = ->
-    @dir = rand 4 if not rand 48
-    @move @dir
-    @fire() if not rand 8
+    draw: -> drawObjSprite @, @g*4, @team
+    die: explode
 
 class Bullet
     layer: 2
@@ -78,22 +71,22 @@ class Bullet
             @x += dirX[@dir]
             @y += dirY[@dir]
     moveProgress: -> @t/@invVelocity
-    draw: -> drawObjSprite @, 4, 2
+    draw: -> drawObjSprite @, 4, 3
     die: ->
-        objs.push new Explosion @x, @y
+        explode.call @
         @owner.bullets -= 1
 
 class Base
     layer: 1
     size: 2
     constructor: (@x, @y) -> @life = 1
-    draw: -> drawSprite @x, @y, 0, 7, 2
-    die: -> objs.push new Explosion @x, @y
+    draw: -> drawSprite @x, @y, 7, 2
+    die: explode
 
 class Explosion
     constructor: (@x, @y, @life = 19) ->
     tick: -> @life -= 1
-    draw: -> drawSprite @x, @y, 0, 3 - @life//5, 2
+    draw: -> drawSprite @x, @y, 4 - @life//5, 2
 
 class Spawn
     constructor: (@x, @y, @t, @team, @control) -> @life = 1
@@ -102,29 +95,28 @@ class Spawn
             objs.push @tank = new Tank @x, @y, @team, @control, tanks[3]
             @t = 160
     draw: -> if @t < 20
-        drawSprite @x, @y, 0, 3 - @t//5, 2
+        drawSprite @x, @y, 4 - @t//5, 2
 
 loadLevel = (level) ->
-    t = 0
-    objs = []
-    for row, ly in level.split ' '
-        for c, lx in row
-            x = lx*2
-            y = ly*2
-            if t = {'o': 1, 'X': 2, '=': 3, '~': 4}[c]
-                setCell cx, cy, t for cx in [x..x+1] for cy in [y..y+1]
-            obj = switch c
-                when '@' then new Base x, y
-                when '0' then new Spawn x, y, t += 100, 0, aiControl
-                when '1' then new Spawn x, y, 10, 1, keyControl keys[0]
-                when '2' then new Spawn x, y, 10, 1, keyControl keys[1]
-            objs.push obj if obj
-
-loadLevel levels[3]
+    objs = [new Base 26, 50]
+    objs.push new Spawn x, 2, 100*(i + 1), 0, aiControl for x, i in [2, 26, 50]
+    objs.push new Spawn x, 50, 10, 1, keyControl keys[i] for x, i in [18, 34]
+    cells = level.slice 0
 
 keyDown = {}
 window.onkeydown = (ev) -> keyDown[ev.code] = true; false
 window.onkeyup = (ev) -> delete keyDown[ev.code]; false
+
+keyControl = (keys) -> ->
+    @move dir for dir in [0..3] when keyDown[keys[dir]]
+    @fire() if keyDown[keys.fire]
+
+aiControl = ->
+    dir = if rand 48 then @dir else rand 4
+    @move dir
+    @fire() if not rand 8
+
+loadLevel testLevel
 
 setInterval ->
     objs = objs.filter (obj) -> obj.life > 0
@@ -136,22 +128,17 @@ canvas = document.getElementById 'view'
 ctx = canvas.getContext '2d'
 canvas.width = width*16
 canvas.height = height*16
-ctx.scale 16, 16
 sprite = new Image()
 sprite.src = 'sprite.png'
 
-drawCell = (type, x, y) -> ctx.drawImage sprite, 84*type + 21*(x%4), 84*3 + 21*(y%4), 21, 21, x, y, 1, 1
-drawSprite = (x, y, dir, sx, sy) ->
-    ctx.save()
-    ctx.translate x, y
-    ctx.rotate dir*Math.PI*0.5
-    ctx.drawImage sprite, 84*sx, 84*sy, 84, 84, -2, -2, 4, 4
-    ctx.restore()
-drawObjSprite = (o, sx, sy) -> drawSprite o.x - dirX[o.dir]*o.moveProgress(), o.y - dirY[o.dir]*o.moveProgress(), o.dir, sx, sy
+drawCell = (type, i) -> x = i%width; y = i//height; ctx.drawImage sprite, 84*(type - 1) + 21*(x%4), 84*3 + 21*(y%4), 21, 21, x, y, 1, 1
+drawSprite = (x, y, sx, sy) -> ctx.drawImage sprite, 84*sx, 84*sy, 84, 84, x - 2, y - 2, 4, 4
+drawObjSprite = (o, sx, sy) -> drawSprite o.x - dirX[o.dir]*o.moveProgress(), o.y - dirY[o.dir]*o.moveProgress(), sx + (o.dir or 0), sy
 
 do draw = ->
-    ctx.clearRect 0, 0, canvas.width, canvas.height
-    drawCell c, i%width, i//height for c, i in cells when c == 3
+    ctx.setTransform canvas.width/width, 0, 0, canvas.height/height, 0, 0
+    ctx.clearRect 0, 0, width, height
+    drawCell c, i for c, i in cells when c == 3
     obj.draw() for obj in objs
-    drawCell c, i%width, i//height for c, i in cells when c != 3
+    drawCell c, i for c, i in cells when c != 3
     window.requestAnimationFrame -> draw()
