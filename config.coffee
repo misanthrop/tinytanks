@@ -13,7 +13,7 @@
         fire: 'Tab'
 
 @tanks =
-    0: { life: 1, invVelocity: 8, fireCooldown: 30, invBulletVelocity: 4, maxBullets: 1 }
-    1: { life: 1, invVelocity: 8, fireCooldown: 30, invBulletVelocity: 2, maxBullets: 1 }
-    2: { life: 1, invVelocity: 8, fireCooldown: 30, invBulletVelocity: 2, maxBullets: 2 }
-    3: { life: 2, invVelocity: 8, fireCooldown: 30, invBulletVelocity: 2, maxBullets: 2 }
+    0: { life: 1, invVelocity: 16, fireCooldown: 30, invBulletVelocity: 4, maxBullets: 1 }
+    1: { life: 1, invVelocity: 16, fireCooldown: 30, invBulletVelocity: 2, maxBullets: 1 }
+    2: { life: 1, invVelocity: 16, fireCooldown: 30, invBulletVelocity: 2, maxBullets: 2 }
+    3: { life: 2, invVelocity: 16, fireCooldown: 30, invBulletVelocity: 2, maxBullets: 2 }
