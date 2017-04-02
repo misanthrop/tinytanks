@@ -3,16 +3,17 @@
 	<title>Tiny Tanks</title>
     <meta charset="UTF-8">
     <style>
-		* { padding: 0; margin: 0; border: 0; }
+		* { color: #eee; padding: 0; margin: 0; border: 0; }
 		#view, #info { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
 		#view { background: black; }
-		#info { color: #eee; font-size: 64px; }
+		#info { text-align: center; font-size: 64px; }
 		body { background: #333; overflow: hidden; }
 	</style>
 </head>
 <body>
     <canvas id="view"></canvas>
-	<div id="info"></div>
+	<div id="score"></div>
+    <div id="info"></div>
     <script src="config.js"></script>
     <script src="levels.js"></script>
     <script src="game.js"></script>
