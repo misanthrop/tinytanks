@@ -118,8 +118,8 @@ class Player
         updateScore()
 
 keyDown = {}
-window.onkeydown = (ev) -> keyDown[ev.code] = true; false
-window.onkeyup = (ev) -> delete keyDown[ev.code]; false
+window.onkeydown = (e) -> keyDown[e.code] = true; false
+window.onkeyup = (e) -> delete keyDown[e.code]; false
 
 keyControl = (keys) -> ->
     @move dir for dir in [0..3] when keyDown[keys[dir]]
@@ -133,7 +133,8 @@ aiControl = ->
 score = document.getElementById 'score'
 updateScore = -> score.innerText =
     "Player 1: #{players[0].life}\nPlayer 2: #{players[1].life}\nEnemies: #{enemies.life}"
-info = document.getElementById 'info'
+
+info = document.getElementById 'event'
 event = (text, fn) -> if not info.innerText
     info.innerText = text
     info.style.visibility = 'visible'
@@ -153,13 +154,13 @@ players = [
     new Player teams[1], 1, keyControl keys[1]]
 
 loadLevel = (level) ->
-    enemies.life = 1
+    enemies.life = 20
     teams[0].players = 1
     cells = levels[level % levels.length].slice 0
     objs = [
         new Base 26, 50, teams[1]
-        new Spawn enemies, 5, [[2, 2], [26, 2], [50, 2]]]
-    objs.push new Spawn players[i], 1, [[x, 50]] for x, i in [18, 34]
+        new Spawn enemies, 5, enemySpawnPoints]
+    objs.push new Spawn players[i], 1, [playerSpawnPoints[i]] for i in [0..1]
     updateScore()
 
 do newGame = ->
