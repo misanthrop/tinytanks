@@ -3,15 +3,21 @@
 	<title>Tiny Tanks</title>
     <meta charset="UTF-8">
     <style>
-		* { padding: 0; margin: 0; border: 0; }
-		body { color: #eee; background: #333; }
-		#view, #event { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+		* { text-align: center; font-size: 48px; color: #eee; }
+		body, canvas { padding: 0; margin: 0; border: 0; background: #333; }
+		#view, #menu, #event { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
 		#view { background: black; }
-		#event { font-size: 64px; text-align: center; }
+		#menu { background: #333; padding: 16px; }
+		button { display: block; width: 100%; background: #444; border: 2px solid #eee; }
 	</style>
 </head>
 <body>
     <canvas id="view"></canvas>
+	<div id="menu">
+		<div>Tiny Tanks</div>
+		<button>1 Player</button>
+		<button>2 Players</button>
+	</div>
 	<div id="score"></div>
     <div id="event"></div>
     <script src="config.js"></script>

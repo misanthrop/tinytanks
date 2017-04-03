@@ -118,8 +118,8 @@ class Player
         updateScore()
 
 keyDown = {}
-window.onkeydown = (e) -> keyDown[e.code] = true; false
-window.onkeyup = (e) -> delete keyDown[e.code]; false
+@onkeydown = (e) -> keyDown[e.code] = true; false
+@onkeyup = (e) -> delete keyDown[e.code]; false
 
 keyControl = (keys) -> ->
     @move dir for dir in [0..3] when keyDown[keys[dir]]
@@ -130,56 +130,59 @@ aiControl = ->
     @move dir
     @fire() if not rand 8
 
-score = document.getElementById 'score'
-updateScore = -> score.innerText =
-    "Player 1: #{players[0].life}\nPlayer 2: #{players[1].life}\nEnemies: #{enemies.life}"
+updateScore = -> score.innerText = "P1: #{players[0].life} P2: #{players[1]?.life ? 0} Enemies: #{enemies.life}"
 
-info = document.getElementById 'event'
-event = (text, fn) -> if not info.innerText
-    info.innerText = text
-    info.style.visibility = 'visible'
+event = (text, fn) -> if not event.innerText
+    event.innerText text
+    event.style.visibility = 'visible'
     setTimeout ->
-        info.innerText = ''
-        info.style.visibility = 'hidden'
+        event.innerText = ''
+        event.style.visibility = 'hidden'
         fn?()
     , 2000
 
-teams = [
-    new Team -> event 'Victory!', -> loadLevel level += 1
-    new Team -> event 'Game\nOver', -> newGame()]
+attackers = new Team -> event 'Victory!', -> loadLevel level += 1
+defenders = new Team -> event 'Game Over', -> stopGame()
 
-enemies = new Player teams[0], 0, aiControl
-players = [
-    new Player teams[1], 1, keyControl keys[0]
-    new Player teams[1], 1, keyControl keys[1]]
+enemies = new Player attackers, 0, aiControl
+players = []
 
 loadLevel = (level) ->
     enemies.life = 20
-    teams[0].players = 1
+    attackers.players = 1
     cells = levels[level % levels.length].slice 0
     objs = [
-        new Base 26, 50, teams[1]
+        new Base 26, 50, defenders
         new Spawn enemies, 5, enemySpawnPoints]
-    objs.push new Spawn players[i], 1, [playerSpawnPoints[i]] for i in [0..1]
+    objs.push new Spawn player, 1, [playerSpawnPoints[i]] for player, i in players
     updateScore()
 
-do newGame = ->
-    players[0].life = players[1].life = 3
-    teams[1].players = 2
+tick = undefined
+newGame = (playerCount) ->
+    menu.style.visibility = 'hidden'
+    players = []
+    for i in [0...playerCount]
+        players[i] = new Player defenders, 1, keyControl keys[i]
+        players[i].life = 3
+    defenders.players = playerCount
     loadLevel 0
+    tick = setInterval ->
+        objs = objs.filter (obj) -> obj.life?
+        obj.tick?() for obj in objs
+        for obj in objs when obj.life <= 0
+            obj.die?()
+            delete obj.life
+    , 10
 
-setInterval ->
-    objs = objs.filter (obj) -> obj.life?
-    obj.tick?() for obj in objs
-    for obj in objs when obj.life <= 0
-        obj.die?()
-        delete obj.life
-, 10
+[1..2].forEach (i) -> menu.children[i].onclick = -> newGame i
 
-canvas = document.getElementById 'view'
-ctx = canvas.getContext '2d'
-canvas.width = width*16
-canvas.height = height*16
+stopGame = ->
+    clearInterval tick
+    menu.style.visibility = 'visible'
+
+do @onresize = -> view.width = view.height = Math.min innerWidth, innerHeight
+
+ctx = view.getContext '2d'
 sprite = new Image()
 sprite.src = 'sprite.png'
 
@@ -188,9 +191,9 @@ drawSprite = (x, y, sx, sy) -> ctx.drawImage sprite, 84*sx, 84*sy, 84, 84, x - 2
 drawMovingObj = (o, t, sx, sy) -> drawSprite o.x - t*dx[o.dir], o.y - t*dy[o.dir], sx + o.dir, sy
 
 do draw = ->
-    ctx.setTransform canvas.width/width, 0, 0, canvas.height/height, 0, 0
+    ctx.setTransform view.width/width, 0, 0, view.height/height, 0, 0
     ctx.clearRect 0, 0, width, height
     drawCell c, i for c, i in cells when c == 3
     obj.draw?() for obj in objs
     drawCell c, i for c, i in cells when c != 3
-    window.requestAnimationFrame -> draw()
+    requestAnimationFrame -> draw()
