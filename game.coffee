@@ -1,8 +1,7 @@
 rand = (max) -> Math.floor Math.random()*max
 
-level = 0
-objs = []
-cells = []
+level = tick = null
+objs = cells = players = enemies = []
 dx = [ 0, 1, 0,-1]
 dy = [-1, 0, 1, 0]
 inRange = (x, y) -> 0 <= x and x < width and 0 <= y and y < height
@@ -75,7 +74,7 @@ class Bullet
             @t = @invVelocity
             @x += dx[@dir]
             @y += dy[@dir]
-    draw: -> drawMovingObj @, @t/@invVelocity, 4, 3
+    draw: -> drawMovingObj @, @t/@invVelocity, 4, 4
 
 class Base
     layer: 1
@@ -84,12 +83,12 @@ class Base
     die: ->
         @team.lose()
         explode @x, @y
-    draw: -> drawSprite @x, @y, 7, 2
+    draw: -> drawSprite @x, @y, 7, 3
 
 class Explosion
     constructor: (@x, @y, @life = 19) ->
     tick: -> @life -= 1
-    draw: -> drawSprite @x, @y, 4 - @life//5, 2
+    draw: -> drawSprite @x, @y, 4 - @life//5, 3
 
 class Spawn
     constructor: (@player, @maxTanks, @points) ->
@@ -112,7 +111,7 @@ class Team
     remove: -> @lose @ if not @players -= 1
 
 class Player
-    constructor: (@team, @color, @control, @lose) -> @team.add @
+    constructor: (@team, @color, @life, @control) -> @team.add @
     kill: ->
         @team.remove @ if not @life -= 1
         updateScore()
@@ -130,25 +129,25 @@ aiControl = ->
     @move dir
     @fire() if not rand 8
 
-updateScore = -> score.innerText = "P1: #{players[0].life} P2: #{players[1]?.life ? 0} Enemies: #{enemies.life}"
+menu = document.getElementById 'menu'
+message = document.getElementById 'message'
+score = document.getElementById 'score'
+updateScore = -> score.children[i].innerText = "P#{i}: #{player.life}" for player, i in players
 
-event = (text, fn) -> if not event.innerText
-    event.innerText text
-    event.style.visibility = 'visible'
+event = (text, fn) -> if not message.innerText
+    message.innerText = text
+    message.style.visibility = 'visible'
     setTimeout ->
-        event.innerText = ''
-        event.style.visibility = 'hidden'
+        message.innerText = ''
+        message.style.visibility = 'hidden'
         fn?()
     , 2000
 
 attackers = new Team -> event 'Victory!', -> loadLevel level += 1
 defenders = new Team -> event 'Game Over', -> stopGame()
 
-enemies = new Player attackers, 0, aiControl
-players = []
-
 loadLevel = (level) ->
-    enemies.life = 20
+    enemies = new Player attackers, 0, 20, aiControl
     attackers.players = 1
     cells = levels[level % levels.length].slice 0
     objs = [
@@ -157,15 +156,12 @@ loadLevel = (level) ->
     objs.push new Spawn player, 1, [playerSpawnPoints[i]] for player, i in players
     updateScore()
 
-tick = undefined
-newGame = (playerCount) ->
+@newGame = (playerCount) ->
     menu.style.visibility = 'hidden'
-    players = []
-    for i in [0...playerCount]
-        players[i] = new Player defenders, 1, keyControl keys[i]
-        players[i].life = 3
+    players = for i in [0...playerCount]
+        new Player defenders, 1 + i, 3, keyControl keys[i]
     defenders.players = playerCount
-    loadLevel 0
+    loadLevel level = 0
     tick = setInterval ->
         objs = objs.filter (obj) -> obj.life?
         obj.tick?() for obj in objs
@@ -174,23 +170,22 @@ newGame = (playerCount) ->
             delete obj.life
     , 10
 
-[1..2].forEach (i) -> menu.children[i].onclick = -> newGame i
-
 stopGame = ->
     clearInterval tick
     menu.style.visibility = 'visible'
 
-do @onresize = -> view.width = view.height = Math.min innerWidth, innerHeight
-
+view = document.getElementById 'view'
 ctx = view.getContext '2d'
 sprite = new Image()
 sprite.src = 'sprite.png'
 
-drawCell = (type, i) -> x = i%width; y = i//height; ctx.drawImage sprite, 84*(type - 1) + 21*(x%4), 84*3 + 21*(y%4), 21, 21, x, y, 1, 1
+do @onresize = -> view.width = view.height = Math.min innerWidth//width*width, innerHeight//height*height
+
+drawCell = (type, i) -> x = i%width; y = i//height; ctx.drawImage sprite, 84*(type - 1) + 21*(x%4), 84*4 + 21*(y%4), 21, 21, x, y, 1, 1
 drawSprite = (x, y, sx, sy) -> ctx.drawImage sprite, 84*sx, 84*sy, 84, 84, x - 2, y - 2, 4, 4
 drawMovingObj = (o, t, sx, sy) -> drawSprite o.x - t*dx[o.dir], o.y - t*dy[o.dir], sx + o.dir, sy
 
-do draw = ->
+do draw = -> if objs?
     ctx.setTransform view.width/width, 0, 0, view.height/height, 0, 0
     ctx.clearRect 0, 0, width, height
     drawCell c, i for c, i in cells when c == 3

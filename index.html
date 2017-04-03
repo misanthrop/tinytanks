@@ -1,27 +1,18 @@
-<html>
-<head>
-	<title>Tiny Tanks</title>
-    <meta charset="UTF-8">
-    <style>
-		* { text-align: center; font-size: 48px; color: #eee; }
-		body, canvas { padding: 0; margin: 0; border: 0; background: #333; }
-		#view, #menu, #event { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
-		#view { background: black; }
-		#menu { background: #333; padding: 16px; }
-		button { display: block; width: 100%; background: #444; border: 2px solid #eee; }
-	</style>
-</head>
-<body>
-    <canvas id="view"></canvas>
-	<div id="menu">
-		<div>Tiny Tanks</div>
-		<button>1 Player</button>
-		<button>2 Players</button>
-	</div>
-	<div id="score"></div>
-    <div id="event"></div>
-    <script src="config.js"></script>
-    <script src="levels.js"></script>
-    <script src="game.js"></script>
-</body>
-</html>
+<!doctype html>
+<title>Tiny Tanks</title>
+<meta charset="UTF-8">
+<link rel="stylesheet" href="ui.css">
+<canvas id="view"></canvas>
+<div id="score">
+	<div id="p0"></div>
+	<div id="p1"></div>
+</div>
+<div id="message"></div>
+<div id="menu">
+	<div>Tiny Tanks</div>
+	<button onclick="newGame(1)">1 Player</button>
+	<button onclick="newGame(2)">2 Players</button>
+</div>
+<script src="config.js"></script>
+<script src="levels.js"></script>
+<script src="game.js"></script>
