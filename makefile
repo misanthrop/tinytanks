@@ -11,10 +11,14 @@ $(out)%.png: %.png
 	@mkdir -p $(@D)
 	cp $^ $@
 
+$(out)%.html: %.jade
+	@mkdir -p $(@D)
+	jade <$^ >$@
+
 $(out)%.js: %.coffee
 	@mkdir -p $(@D)
 	coffee -p $^ >$@
 
-$(out)%: %
+$(out)%.css: %.sass
 	@mkdir -p $(@D)
-	cp $^ $@
+	sassc $^ >$@
