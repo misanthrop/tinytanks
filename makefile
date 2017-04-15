@@ -11,9 +11,9 @@ $(out)%.png: %.png
 	@mkdir -p $(@D)
 	cp $^ $@
 
-$(out)%.html: %.jade
+$(out)%.html: %.pug
 	@mkdir -p $(@D)
-	jade <$^ >$@
+	pug <$^ >$@
 
 $(out)%.js: %.coffee
 	@mkdir -p $(@D)
