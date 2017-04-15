@@ -1,3 +1,5 @@
+---
+---
 rand = (max) -> Math.floor Math.random()*max
 
 level = tick = null
