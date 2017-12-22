@@ -143,8 +143,8 @@ event = (text, fn) -> if not message.innerText
 		fn?()
 	, 2000
 
-attackers = new Team -> event 'Victory!', -> loadLevel level += 1
-defenders = new Team -> event 'Game Over', -> stopGame()
+attackers = new Team -> event 'VICTORY!', -> loadLevel level += 1
+defenders = new Team -> event 'GAME OVER', -> stopGame()
 
 loadLevel = (level) ->
 	enemies = new Player attackers, 0, 20, aiControl
