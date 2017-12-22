@@ -1,4 +1,4 @@
-@keys =
+export keys =
 	0:
 		0: 'ArrowUp'
 		1: 'ArrowRight'
@@ -12,7 +12,7 @@
 		3: 'KeyA'
 		fire: 'Tab'
 
-@tanks =
+export tanks =
 	0: { life: 1, invVelocity: 16, fireCooldown: 30, invBulletVelocity: 4, maxBullets: 1 }
 	1: { life: 1, invVelocity: 16, fireCooldown: 30, invBulletVelocity: 2, maxBullets: 1 }
 	2: { life: 1, invVelocity: 16, fireCooldown: 30, invBulletVelocity: 2, maxBullets: 2 }

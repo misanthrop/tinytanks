@@ -1,0 +1,12 @@
+doctype html
+title Tiny Tanks
+canvas#view
+#score
+	#p0
+	#p1
+#message
+#menu
+	div Tiny Tanks
+	button onclick='newGame(1)' 1 Player
+	button onclick='newGame(2)' 2 Players
+script src='all.js'

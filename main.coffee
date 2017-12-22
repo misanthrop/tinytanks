@@ -1,3 +1,7 @@
+import './index.slm'
+import './ui.sass'
+import {keys, tanks} from './config.coffee'
+import {width, height, playerSpawnPoints, enemySpawnPoints, levels} from './levels.coffee'
 rand = (max) -> Math.floor Math.random()*max
 
 level = tick = null
@@ -12,7 +16,7 @@ cellMask = [0, 0b11, 0b11, 0b1, 0]
 collide = (a, ax, ay) ->
 	for x in [ax - a.size ... ax + a.size]
 		for y in [ay - a.size ... ay + a.size]
-			return true if a.layer & cellMask[cell x, y]
+			return a if a.layer & cellMask[cell x, y]
 	return if (ax != a.x or ay != a.y) and collide a, a.x, a.y
 	for b in objs when a != b and b != a.tank and a.mask & b.layer
 		return b if Math.max(Math.abs(ax - b.x), Math.abs(ay - b.y)) < a.size + b.size
@@ -117,8 +121,8 @@ class Player
 		updateScore()
 
 keyDown = {}
-@onkeydown = (e) -> keyDown[e.code] = true; false
-@onkeyup = (e) -> delete keyDown[e.code]; false
+window.onkeydown = (e) -> keyDown[e.code] = true; false
+window.onkeyup = (e) -> delete keyDown[e.code]; false
 
 keyControl = (keys) -> ->
 	@move dir for dir in [0..3] when keyDown[keys[dir]]
@@ -143,8 +147,8 @@ event = (text, fn) -> if not message.innerText
 		fn?()
 	, 2000
 
-attackers = new Team -> event 'VICTORY!', -> loadLevel level += 1
-defenders = new Team -> event 'GAME OVER', -> stopGame()
+attackers = new Team -> event 'Victory!', -> loadLevel level += 1
+defenders = new Team -> event 'Game Over', -> stopGame()
 
 loadLevel = (level) ->
 	enemies = new Player attackers, 0, 20, aiControl
@@ -156,7 +160,7 @@ loadLevel = (level) ->
 	objs.push new Spawn player, 1, [playerSpawnPoints[i]] for player, i in players
 	updateScore()
 
-@newGame = (playerCount) ->
+window.newGame = (playerCount) ->
 	menu.style.visibility = 'hidden'
 	players = for i in [0...playerCount]
 		new Player defenders, 1 + i, 3, keyControl keys[i]
@@ -176,19 +180,25 @@ stopGame = ->
 
 view = document.getElementById 'view'
 ctx = view.getContext '2d'
-sprite = new Image()
-sprite.src = 'sprite.png'
+sprite = Object.assign new Image, src: require './sprite.png'
 
-do @onresize = -> view.width = view.height = Math.min innerWidth//width*width, innerHeight//height*height
+cellSize = 21
+do window.onresize = ->
+	cellSize = Math.min window.innerWidth//width, window.innerHeight//height
+	view.width = width*cellSize
+	view.height = height*cellSize
 
-drawCell = (type, i) -> x = i%width; y = i//height; ctx.drawImage sprite, 84*(type - 1) + 21*(x%4), 84*4 + 21*(y%4), 21, 21, x, y, 1, 1
-drawSprite = (x, y, sx, sy) -> ctx.drawImage sprite, 84*sx, 84*sy, 84, 84, x - 2, y - 2, 4, 4
+drawCell = (type, i) ->
+	x = i%width
+	y = i//height
+	ctx.drawImage sprite, 21*(type*4 - 4 + x%4), 21*(16 + y%4), 21, 21, x*cellSize, y*cellSize, cellSize, cellSize
+
+drawSprite = (x, y, sx, sy) -> ctx.drawImage sprite, 84*sx, 84*sy, 84, 84, (x - 2)*cellSize, (y - 2)*cellSize, cellSize*4, cellSize*4
 drawMovingObj = (o, t, sx, sy) -> drawSprite o.x - t*dx[o.dir], o.y - t*dy[o.dir], sx + o.dir, sy
 
 do draw = -> if objs?
-	ctx.setTransform view.width/width, 0, 0, view.height/height, 0, 0
-	ctx.clearRect 0, 0, width, height
+	ctx.clearRect 0, 0, view.width, view.height
 	drawCell c, i for c, i in cells when c == 3
 	obj.draw?() for obj in objs
 	drawCell c, i for c, i in cells when c != 3
-	requestAnimationFrame -> draw()
+	requestAnimationFrame draw
