@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "start": "webpack-dev-server",
-    "build": "webpack"
+    "build": "webpack",
+    "deploy": "gh-pages -d /tmp/tinytanks"
   },
   "author": "Wheel Labs",
   "private": true,
@@ -14,6 +15,7 @@
     "coffeescript": "^2.0.2",
     "css-loader": "^0.28.7",
     "file-loader": "^1.1.5",
+    "gh-pages": "misanthrop/gh-pages",
     "node-sass": "^4.7.1",
     "sass-loader": "^6.0.6",
     "slm-loader": "^0.2.3",
