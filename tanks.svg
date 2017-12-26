@@ -27,9 +27,9 @@
      borderopacity="1.0"
      inkscape:pageopacity="0"
      inkscape:pageshadow="2"
-     inkscape:zoom="1"
-     inkscape:cx="381.88777"
-     inkscape:cy="30.156724"
+     inkscape:zoom="0.70710678"
+     inkscape:cx="36.985663"
+     inkscape:cy="67.54784"
      inkscape:document-units="mm"
      inkscape:current-layer="layer3"
      showgrid="false"
@@ -9105,18 +9105,7 @@
      style="display:inline;opacity:1"
      inkscape:label="original"
      id="layer3"
-     inkscape:groupmode="layer">
-    <image
-       sodipodi:absref="/home/vit/Картинки/work/tanks_3.png"
-       y="-173.4245"
-       x="-212.27296"
-       id="image3004"
-       xlink:href="file:///home/vit/%D0%9A%D0%B0%D1%80%D1%82%D0%B8%D0%BD%D0%BA%D0%B8/work/tanks_3.png"
-       preserveAspectRatio="none"
-       height="104.15712"
-       width="80.982155"
-       transform="rotate(-90)" />
-  </g>
+     inkscape:groupmode="layer" />
   <g
      transform="translate(0,-117.5848)"
      style="display:none;opacity:1"
