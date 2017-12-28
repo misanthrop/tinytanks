@@ -180,7 +180,7 @@ stopGame = ->
 
 view = document.getElementById 'view'
 ctx = view.getContext '2d'
-sprite = Object.assign new Image, src: require './sprite.png'
+sprite = Object.assign new Image, src: require './tanks.svg'
 
 cellSize = 21
 do window.onresize = ->
