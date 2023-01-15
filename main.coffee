@@ -1,5 +1,5 @@
-import './index.slm'
-import './ui.sass'
+import './index.html'
+import './ui.css'
 import {keys, tanks} from './config.coffee'
 import {width, height, playerSpawnPoints, enemySpawnPoints, levels} from './levels.coffee'
 rand = (max) -> Math.floor Math.random()*max
@@ -180,7 +180,7 @@ stopGame = ->
 
 view = document.getElementById 'view'
 ctx = view.getContext '2d'
-sprite = Object.assign new Image, src: require './tanks.svg'
+sprite = Object.assign new Image, src: require './tanks.png'
 
 cellSize = 21
 do window.onresize = ->

@@ -8,12 +8,9 @@ module.exports =
 	module:
 		rules: [
 			{ test: /\.coffee$/, use: 'coffee-loader' }
-			{ test: /\.slm$/, use: ['file-loader?name=[name].html', 'slm-loader'] }
-			{ test: /\.sass$/, use: ['style-loader', 'css-loader', 'sass-loader'] }
-			{ test: /\.svg$/, use:
-				loader: 'cmd-output-file-loader', options:
-					name: '[hash].png'
-					command: "inkscape -z -e [output] [input]" }
+			{ test: /\.html$/, use: 'file-loader' }
+			{ test: /\.css$/, use: ['style-loader', 'css-loader'] }
+			{ test: /\.png$/, use: 'file-loader' }
 		]
 	devtool: 'source-map'
 	devServer:
